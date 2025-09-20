@@ -12,7 +12,7 @@ PROJECT_TYPE ?= webapp
 STABILITY ?= stable
 INIT_GIT ?= true
 
-.PHONY: help build up down install create-project create-api reset logs shell fix-permissions
+.PHONY: help build up down install create-project create-api reset logs shell fix-permissions test phpstan phpcs phplint phpunit
 
 help: ## Affiche l'aide
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -90,10 +90,18 @@ reset-keep-git: down ## Reset du projet en gardant Git
 	rm -rf src/ config/ public/ var/ vendor/ composer.* symfony.* .env .env.test
 	INIT_GIT=false make install
 
-fix-permissions: ## Répare les permissions des fichiers
-	chown -R $(USER_ID):$(GROUP_ID) .
-	chmod -R 755 var/ 2>/dev/null || true
-	chmod -R 755 public/ 2>/dev/null || true
+fix-permissions: ## Répare les permissions des fichiers Symfony
+	@echo "🔧 Correction des permissions..."
+	@if [ "$(shell id -u)" = "0" ]; then \
+		chown -R $(USER_ID):$(GROUP_ID) var/ public/ vendor/ 2>/dev/null || true; \
+	else \
+		sudo chown -R $(USER_ID):$(GROUP_ID) var/ public/ vendor/ 2>/dev/null || true; \
+	fi
+	@find var/ -type f -exec chmod 644 {} \; 2>/dev/null || true
+	@find var/ -type d -exec chmod 755 {} \; 2>/dev/null || true
+	@find public/ -type f -exec chmod 644 {} \; 2>/dev/null || true
+	@find public/ -type d -exec chmod 755 {} \; 2>/dev/null || true
+	@echo "✅ Permissions corrigées"
 
 logs: ## Affiche les logs
 	docker compose logs -f
@@ -131,11 +139,27 @@ cache-warmup: ## Préchauffe le cache
 	USER_ID=$(USER_ID) GROUP_ID=$(GROUP_ID) USER_NAME=$(USER_NAME) docker compose exec frankenphp php bin/console cache:warmup
 
 # Tests et qualité
-test: ## Lance les tests
-	USER_ID=$(USER_ID) GROUP_ID=$(GROUP_ID) USER_NAME=$(USER_NAME) docker compose exec frankenphp php bin/phpunit
+test: ## Lance PHPUnit (tests unitaires et d'application)
+	@echo "🧪 Exécution des tests PHPUnit..."
+	USER_ID=$(USER_ID) GROUP_ID=$(GROUP_ID) USER_NAME=$(USER_NAME) docker compose exec frankenphp vendor/bin/phpunit --testsuite Unit,Application --testdox
 
 test-coverage: ## Lance les tests avec couverture
 	USER_ID=$(USER_ID) GROUP_ID=$(GROUP_ID) USER_NAME=$(USER_NAME) docker compose exec frankenphp php bin/phpunit --coverage-html var/coverage
+
+phpstan: ## Lance l'analyse statique avec PHPStan
+	@echo "🔍 Analyse statique avec PHPStan..."
+	USER_ID=$(USER_ID) GROUP_ID=$(GROUP_ID) USER_NAME=$(USER_NAME) docker compose exec frankenphp vendor/bin/phpstan analyse
+
+phpcs: ## Vérification du style de code avec PHPCS
+	@echo "🎨 Vérification du style de code..."
+	USER_ID=$(USER_ID) GROUP_ID=$(GROUP_ID) USER_NAME=$(USER_NAME) docker compose exec frankenphp vendor/bin/php-cs-fixer fix
+
+phplint: ## Vérification de la syntaxe avec PHPLint
+	@echo "🔧 Vérification de la syntaxe..."
+	USER_ID=$(USER_ID) GROUP_ID=$(GROUP_ID) USER_NAME=$(USER_NAME) docker compose exec frankenphp vendor/bin/phplint
+
+test-all: test phpstan phpcs phplint ## Lance tous les tests de qualité
+	@echo "✅ Tous les tests de qualité sont passés avec succès!"
 
 # Environnements
 up-dev: up ## Démarre en mode développement (alias pour up)
