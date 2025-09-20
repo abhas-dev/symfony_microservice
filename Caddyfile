@@ -1,0 +1,35 @@
+{
+	# Configuration globale
+	frankenphp
+	order php_server before file_server
+}
+
+# Configuration du serveur pour Symfony
+{$SERVER_NAME:localhost} {
+	# Document root
+	root * /app/public
+
+	# Activation du serveur PHP avec FrankenPHP
+	php_server
+
+	# Gestion des assets statiques
+	file_server
+
+	# Logs pour le développement
+	log {
+		output stdout
+		format console
+	}
+
+	# Headers de sécurité basiques
+	header {
+		# Disable FLoC tracking
+		Permissions-Policy interest-cohort=()
+		# Disable clients from sniffing the media type
+		X-Content-Type-Options nosniff
+		# Clickjacking protection
+		X-Frame-Options DENY
+		# Keep referrer data off of HTTP connections
+		Referrer-Policy no-referrer-when-downgrade
+	}
+}

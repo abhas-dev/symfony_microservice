@@ -1,0 +1,39 @@
+# Override pour l'environnement de développement
+# Ce fichier est automatiquement utilisé par docker-compose en développement
+
+services:
+  frankenphp:
+    volumes:
+      # Mount du code source pour le développement en temps réel
+      - .:/app
+      # Volumes persistants pour Caddy (certificats SSL, configuration)
+      - caddy_data:/data
+      - caddy_config:/config
+    # Logs lisibles et colorés en développement
+    tty: true
+    # Variables spécifiques au développement
+    environment:
+      - APP_ENV=dev
+      - APP_DEBUG=true
+
+###> doctrine/doctrine-bundle ###
+  database:
+    ports:
+      - "5435"
+###< doctrine/doctrine-bundle ###
+
+###> symfony/mailer ###
+  mailer:
+    image: axllent/mailpit
+    ports:
+      - "1025"
+      - "8025"
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+###< symfony/mailer ###
+
+volumes:
+  # Volumes FrankenPHP/Caddy pour le développement
+  caddy_data:
+  caddy_config:

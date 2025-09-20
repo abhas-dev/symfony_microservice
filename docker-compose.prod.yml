@@ -1,0 +1,43 @@
+services:
+  frankenphp:
+    # En production, on peut utiliser une image pré-construite ou build avec des optimisations
+    restart: unless-stopped
+    volumes:
+      # En production, on peut copier le code dans l'image plutôt que d'utiliser un volume
+      # Décommentez si vous préférez copier le code dans l'image:
+      # - /path/to/your/app:/app:ro
+      
+      # Volumes persistants pour Caddy (certificats SSL, configuration)
+      - caddy_data_prod:/data
+      - caddy_config_prod:/config
+    environment:
+      - APP_ENV=prod
+      - APP_DEBUG=false
+      # Configuration worker recommandée en production
+      - FRANKENPHP_CONFIG=worker ./public/index.php
+    # Désactiver tty en production pour de meilleures performances
+    tty: false
+    # Healthcheck pour s'assurer que l'application fonctionne
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  postgres:
+    restart: unless-stopped
+    # Configuration de production pour PostgreSQL
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    ports: []
+
+volumes:
+  # Volumes de production séparés
+  caddy_data_prod:
+  caddy_config_prod:
+  postgres_data_prod:
